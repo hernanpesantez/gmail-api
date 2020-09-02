@@ -27,12 +27,12 @@ print(imap_pass)
 
 import  poplib
 
-user = input('email: ') 
+ 
 # Connect to the mail box 
 Mailbox = poplib.POP3_SSL('pop.googlemail.com', '995') 
-Mailbox.user(user) 
-passd = input('pass: ')
-Mailbox.pass_(passd) 
+Mailbox.user(imap_user) 
+
+Mailbox.pass_(imap_pass) 
 NumofMessages = len(Mailbox.list()[1])
 for i in range(NumofMessages):
     for msg in Mailbox.retr(i+1)[1]:
@@ -43,61 +43,120 @@ Mailbox.quit()
 
 # connect to host using SSL
 
-# mail = imaplib.IMAP4_SSL(“host”,port)
-
-
-# u = input("Enter email: ")
-# p = input("Password: ")
 
 
 
-imap = imaplib.IMAP4('imap.gmail.com',995)
 
-print(dir(imap))
+# imap = imaplib.IMAP4_SSL('imap.gmail.com',993)
 
-
-# login to server
-imap.login(imap_user, imap_pass)
+# # print(dir(imap))
 
 
+# # login to server
+# imap.login(imap_user, imap_pass)
 
-print(imap)
-imap.select('Inbox')
 
-tmp, data = imap.search(None, 'ALL')
-for num in data[0].split():
-	tmp, data = imap.fetch(num, '(RFC822)')
-	print('Message: {0}\n'.format(num))
-	pprint.pprint(data[0][1])
-	break
-imap.close()
+
+# print(dir(imap))
+# imap.select('Inbox')
+
+# tmp, data = imap.search(None, 'ALL')
+
+# print(data[0])
+# for num in data[0].split():
+# 	tmp, data = imap.fetch(num, '(RFC822)')
+# 	print('Message: {0}\n'.format(num))
+    
+# 	pprint.pprint(data)
+# 	break
+# imap.close()
 
 #=======================================================================
 
+
+
 # import imaplib
-# import ConfigParser
-# import os
+# import pprint
+# import imaplib_connect
 
-# def open_connection(verbose=False):
-#     # Read the config file
-#     config = ConfigParser.ConfigParser()
-#     config.read([os.path.expanduser('~/.pymotw')])
+# with imaplib_connect.open_connection() as c:
+#     c.select('INBOX', readonly=True)
 
-#     # Connect to the server
-#     hostname = config.get('server', 'hostname')
-#     if verbose: print ('Connecting to', hostname)
-#     connection = imaplib.IMAP4_SSL(hostname)
+#     print('HEADER:')
+#     typ, msg_data = c.fetch('1', '(BODY.PEEK[HEADER])')
+#     for response_part in msg_data:
+#         if isinstance(response_part, tuple):
+#             print(response_part[1])
 
-#     # Login to our account
-#     username = config.get('account', 'username')
-#     password = config.get('account', 'password')
-#     if verbose: print ('Logging in as', username)
-#     connection.login(username, password)
-#     return connection
+#     print('\nBODY TEXT:')
+#     typ, msg_data = c.fetch('1', '(BODY.PEEK[TEXT])')
+#     for response_part in msg_data:
+#         if isinstance(response_part, tuple):
+#             print(response_part[1])
 
-# if __name__ == '__main__':
-#     c = open_connection(verbose=True)
-#     try:
-#         print (c)
-#     finally:
-#         c.logout()
+#     print('\nFLAGS:')
+#     typ, msg_data = c.fetch('1', '(FLAGS)')
+#     for response_part in msg_data:
+#         print(response_part)
+#         print(imaplib.ParseFlags(response_part))
+
+
+
+# ==================================================================
+server = 'imap.gmail.com'
+user = 'vcgdevtest@gmail.com'
+password = 'Python@1822'
+outputdir = '/temp'
+subject = 'VCG Submissions Dep.' #subject line of the emails you want to download attachments from
+
+def connect(server, user, password):
+    m = imaplib.IMAP4_SSL(server)
+    m.login(user, password)
+    m.select()
+    return m
+
+def downloaAttachmentsInEmail(m, emailid, outputdir):
+    resp, data = m.fetch(emailid, "(BODY.PEEK[])")
+    email_body = data[0][1]
+    mail = email.message_from_bytes(email_body)
+    if mail.get_content_maintype() != 'multipart':
+        return
+    for part in mail.walk():
+        if part.get_content_maintype() != 'multipart' and part.get('Content-Disposition') is not None:
+            open(outputdir + '/' + part.get_filename(), 'wb').write(part.get_payload(decode=True))
+
+#download attachments from all emails with a specified subject line
+def downloadAttachments(subject):
+    m = connect(server, user, password)
+    m.select("Inbox")
+    typ, msgs = m.search(None, '(SUBJECT "' + subject + '")')
+    msgs = msgs[0].split()
+    for emailid in msgs:
+        downloaAttachmentsInEmail(m, emailid, outputdir)
+
+downloadAttachments(subject)
+
+m = connect(server,user,password)
+
+# downloaAttachmentsInEmail(m, 'vcgdevtest@gmail.com','/temp')
+
+
+
+
+import imaplib
+import email
+
+m = imaplib.IMAP4_SSL("imap.gmail.com", 993)
+m.login(user,password)
+m.select('"[Gmail]/All Mail"')
+
+result, data = m.uid('search', None, "ALL") # search all email and return uids
+if result == 'OK':
+    for num in data[0].split():
+        result, data = m.uid('fetch', num, '(RFC822)')
+    if result == 'OK':
+        email_message = email.message_from_bytes(data[0][1])    # raw email text including headers
+        print('From:' + email_message['From'])
+
+m.close()
+m.logout()
